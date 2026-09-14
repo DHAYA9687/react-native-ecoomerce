@@ -54,6 +54,6 @@ public class AuthService {
             return new ApiResponse(false, "Invalid email or password");
         }
 
-        return new ApiResponse(true, "Login successful");
+        return new ApiResponse(true, "Login successful", user.getId(), user.getUsername(), user.getEmail());
     }
 }
