@@ -1,0 +1,5 @@
+ecommerce/node_modules/
+ecommerce/.expo/
+ecommerce/dist/
+ecommerce/web-build/
+ecommerce/.env
