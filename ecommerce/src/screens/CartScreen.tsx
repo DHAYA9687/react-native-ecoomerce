@@ -1,5 +1,5 @@
 // src/screens/CartScreen.tsx
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { CartItem, useCartStore } from '../store/cartStore';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const PLACEHOLDER_IMAGE = 'https://placehold.co/400x400?text=No+Image';
 
@@ -25,8 +26,15 @@ export default function CartScreen() {
   const items = useCartStore((state) => state.items);
   const isLoading = useCartStore((state) => state.isLoading);
   const fetchCart = useCartStore((state) => state.fetchCart);
-  const updateLocalQuantity = useCartStore((state) => state.updateLocalQuantity);
-  const removeLocalItem = useCartStore((state) => state.removeLocalItem);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeItem = useCartStore((state) => state.removeItem);
+
+  // Tracks which single item has a mutation in flight *and* which action
+  // it is, so quantity changes and removal don't visually stomp on each
+  // other (e.g. the trash icon shouldn't spin just because +/- was tapped).
+  const [pendingAction, setPendingAction] = useState<
+    { productId: number; type: 'quantity' | 'remove' } | null
+  >(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -36,71 +44,118 @@ export default function CartScreen() {
     }, [userId, fetchCart])
   );
 
-  // The backend doesn't have update-quantity/remove-item endpoints yet, so
-  // these actions only touch local state - the values will reset back to
-  // whatever the server has next time the cart is fetched.
-  const notifyUnsupported = () => {
-    Alert.alert(
-      'Not available yet',
-      'Updating quantity or removing items isn’t supported by the server yet.'
-    );
+  const handleQuantityChange = async (item: CartItem, delta: number) => {
+    setPendingAction({ productId: item.productId, type: 'quantity' });
+    try {
+      await updateQuantity(item.productId, item.quantity + delta);
+    } catch (err) {
+      Alert.alert('Something went wrong', 'Could not update this item’s quantity.');
+    } finally {
+      setPendingAction(null);
+    }
   };
 
-  const updateQuantity = (productId: number, delta: number) => {
-    notifyUnsupported();
-    updateLocalQuantity(productId, delta);
+  const handleRemove = async (item: CartItem) => {
+    setPendingAction({ productId: item.productId, type: 'remove' });
+    try {
+      await removeItem(item.productId);
+    } catch (err) {
+      Alert.alert('Something went wrong', 'Could not remove this item.');
+    } finally {
+      setPendingAction(null);
+    }
   };
 
-  const removeItem = (productId: number) => {
-    notifyUnsupported();
-    removeLocalItem(productId);
+  // Any path that would take an item out of the cart - the trash icon, or
+  // decreasing a quantity of 1 - goes through this confirmation dialog first.
+  const [confirmTarget, setConfirmTarget] = useState<
+    { item: CartItem; type: 'trash' | 'decrease' } | null
+  >(null);
+
+  const handleTrashPress = (item: CartItem) => {
+    setConfirmTarget({ item, type: 'trash' });
+  };
+
+  const handleDecreasePress = (item: CartItem) => {
+    if (item.quantity <= 1) {
+      // Backend treats quantity <= 0 as a removal, so this is really a delete.
+      setConfirmTarget({ item, type: 'decrease' });
+    } else {
+      handleQuantityChange(item, -1);
+    }
+  };
+
+  const handleConfirmRemoval = async () => {
+    if (!confirmTarget) return;
+    const { item, type } = confirmTarget;
+    if (type === 'trash') {
+      await handleRemove(item);
+    } else {
+      await handleQuantityChange(item, -1);
+    }
+    setConfirmTarget(null);
   };
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipping = subtotal > 0 ? 5.0 : 0;
   const total = subtotal + shipping;
 
-  const renderItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.cartCard}>
-      <Image
-        source={{ uri: item.imageUrl || PLACEHOLDER_IMAGE }}
-        style={styles.itemImage}
-        contentFit="cover"
-        transition={200}
-      />
+  const renderItem = ({ item }: { item: CartItem }) => {
+    const isPending = pendingAction?.productId === item.productId;
+    const isRemoving = isPending && pendingAction?.type === 'remove';
 
-      <View style={styles.itemInfo}>
-        <View style={styles.itemTopRow}>
-          <Text style={styles.itemName} numberOfLines={1}>
-            {item.productName}
-          </Text>
-          <TouchableOpacity onPress={() => removeItem(item.productId)} hitSlop={8}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-          </TouchableOpacity>
-        </View>
+    return (
+      <View style={styles.cartCard}>
+        <Image
+          source={{ uri: item.imageUrl || PLACEHOLDER_IMAGE }}
+          style={styles.itemImage}
+          contentFit="cover"
+          transition={200}
+        />
 
-        <View style={styles.itemBottomRow}>
-          <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-
-          <View style={styles.stepper}>
+        <View style={styles.itemInfo}>
+          <View style={styles.itemTopRow}>
+            <Text style={styles.itemName} numberOfLines={1}>
+              {item.productName}
+            </Text>
             <TouchableOpacity
-              style={styles.stepperBtn}
-              onPress={() => updateQuantity(item.productId, -1)}
+              onPress={() => handleTrashPress(item)}
+              disabled={isPending}
+              hitSlop={8}
             >
-              <Ionicons name="remove" size={16} color="#111827" />
+              {isRemoving ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              )}
             </TouchableOpacity>
-            <Text style={styles.stepperValue}>{item.quantity}</Text>
-            <TouchableOpacity
-              style={styles.stepperBtn}
-              onPress={() => updateQuantity(item.productId, 1)}
-            >
-              <Ionicons name="add" size={16} color="#111827" />
-            </TouchableOpacity>
+          </View>
+
+          <View style={styles.itemBottomRow}>
+            <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+
+            <View style={styles.stepper}>
+              <TouchableOpacity
+                style={styles.stepperBtn}
+                onPress={() => handleDecreasePress(item)}
+                disabled={isPending}
+              >
+                <Ionicons name="remove" size={16} color="#111827" />
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>{item.quantity}</Text>
+              <TouchableOpacity
+                style={styles.stepperBtn}
+                onPress={() => handleQuantityChange(item, 1)}
+                disabled={isPending}
+              >
+                <Ionicons name="add" size={16} color="#111827" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,6 +222,23 @@ export default function CartScreen() {
           </View>
         </>
       )}
+
+      <ConfirmDialog
+        visible={!!confirmTarget}
+        title="Remove item?"
+        message={
+          confirmTarget
+            ? `Remove "${confirmTarget.item.productName}" from your cart?`
+            : undefined
+        }
+        confirmLabel="Remove"
+        destructive
+        loading={
+          !!confirmTarget && pendingAction?.productId === confirmTarget.item.productId
+        }
+        onConfirm={handleConfirmRemoval}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </SafeAreaView>
   );
 }

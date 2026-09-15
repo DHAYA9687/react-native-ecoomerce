@@ -18,16 +18,15 @@ type CartStore = {
     fetchCart: (userId: number) => Promise<void>;
     addToCart: (userId: number, productId: number, quantity?: number) => Promise<void>;
 
-    // NOTE: the backend doesn't expose update-quantity or remove-item
-    // endpoints yet, so these only affect local state - they will not
-    // survive a re-fetch of the cart until that support is added.
-    updateLocalQuantity: (productId: number, delta: number) => void;
-    removeLocalItem: (productId: number) => void;
+    // Sets the item's quantity to an absolute value (not a delta). Setting it
+    // to 0 or less removes the item, matching the backend's own behavior.
+    updateQuantity: (productId: number, quantity: number) => Promise<void>;
+    removeItem: (productId: number) => Promise<void>;
 
     clearCart: () => void;
 };
 
-export const useCartStore = create<CartStore>((set) => ({
+export const useCartStore = create<CartStore>((set, get) => ({
     cartId: null,
     items: [],
     isLoading: false,
@@ -66,20 +65,53 @@ export const useCartStore = create<CartStore>((set) => ({
         }
     },
 
-    updateLocalQuantity: (productId, delta) => {
-        set((state) => ({
-            items: state.items.map((item) =>
-                item.productId === productId
-                    ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-                    : item
-            ),
-        }));
+    updateQuantity: async (productId, quantity) => {
+        const { cartId } = get();
+        if (!cartId) return;
+
+        set({ isLoading: true, error: null });
+        try {
+            const response = await api.put(`/api/cart/items/${cartId}`, { productId, quantity });
+            if (!response.data?.success) {
+                throw new Error(response.data?.message ?? 'Failed to update item');
+            }
+            set((state) => ({
+                items:
+                    quantity <= 0
+                        ? state.items.filter((item) => item.productId !== productId)
+                        : state.items.map((item) =>
+                              item.productId === productId ? { ...item, quantity } : item
+                          ),
+            }));
+        } catch (err) {
+            console.error('Update cart item error:', err);
+            set({ error: 'Failed to update item' });
+            throw err;
+        } finally {
+            set({ isLoading: false });
+        }
     },
 
-    removeLocalItem: (productId) => {
-        set((state) => ({
-            items: state.items.filter((item) => item.productId !== productId),
-        }));
+    removeItem: async (productId) => {
+        const { cartId } = get();
+        if (!cartId) return;
+
+        set({ isLoading: true, error: null });
+        try {
+            const response = await api.delete(`/api/cart/${cartId}/items/${productId}`);
+            if (!response.data?.success) {
+                throw new Error(response.data?.message ?? 'Failed to remove item');
+            }
+            set((state) => ({
+                items: state.items.filter((item) => item.productId !== productId),
+            }));
+        } catch (err) {
+            console.error('Remove cart item error:', err);
+            set({ error: 'Failed to remove item' });
+            throw err;
+        } finally {
+            set({ isLoading: false });
+        }
     },
 
     clearCart: () => set({ cartId: null, items: [] }),

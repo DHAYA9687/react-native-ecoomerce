@@ -8,6 +8,7 @@ import com.example.ecommerce.entity.Product;
 
 import org.springframework.stereotype.Service;
 
+import com.example.ecommerce.dto.auth.ApiResponse;
 import com.example.ecommerce.dto.cart.CartItemResponse;
 import com.example.ecommerce.dto.cart.CartRequest;
 import com.example.ecommerce.dto.cart.CartResponse;
@@ -80,6 +81,30 @@ public class CartService {
                 .findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Cart not found for user with ID: " + userId));
         return buildCartResponse(cart);
+    }
+
+    public ApiResponse updateCartItemQuantity(Long cartId, Long productId, int quantity) {
+        CartItem cartItem = cartItemRepository.findByCartIdAndProductId(cartId, productId)
+                .orElseThrow(() -> new RuntimeException("Cart item not found for cart ID: " + cartId + " and product ID: " + productId));
+
+        if (quantity <= 0) {
+            // If the quantity is zero or negative, remove the item from the cart
+            cartItemRepository.delete(cartItem);
+            return new ApiResponse(true, "Item removed from cart");
+        } else {
+            // Otherwise, update the quantity
+            cartItem.setQuantity(quantity);
+            cartItemRepository.save(cartItem);
+            return new ApiResponse(true, "Item quantity updated");
+        }
+    }
+
+    public ApiResponse removeCartItem(Long cartId, Long productId) {
+        CartItem cartItem = cartItemRepository.findByCartIdAndProductId(cartId, productId)
+                .orElseThrow(() -> new RuntimeException("Cart item not found for cart ID: " + cartId + " and product ID: " + productId));
+
+        cartItemRepository.delete(cartItem);
+        return new ApiResponse(true, "Item removed from cart");
     }
 
     private CartResponse buildCartResponse(Cart cart) {
