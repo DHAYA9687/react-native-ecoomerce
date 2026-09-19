@@ -39,7 +39,7 @@ type MenuItem = {
 const ACCOUNT_ITEMS: MenuItem[] = [
   { id: 'orders', label: 'My Orders', icon: 'receipt-outline', route: 'Orders' },
   { id: 'wishlist', label: 'Wishlist', icon: 'heart-outline', route: 'Wishlist' },
-  { id: 'addresses', label: 'Shipping Addresses', icon: 'location-outline' },
+  { id: 'addresses', label: 'Shipping Addresses', icon: 'location-outline', route: 'Addresses' },
   { id: 'payment', label: 'Payment Methods', icon: 'card-outline' },
 ];
 

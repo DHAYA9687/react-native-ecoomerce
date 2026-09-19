@@ -16,6 +16,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { CartItem, useCartStore } from '../store/cartStore';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { formatPrice } from '../utils/currency';
 
 const PLACEHOLDER_IMAGE = 'https://placehold.co/400x400?text=No+Image';
 
@@ -132,7 +133,7 @@ export default function CartScreen() {
           </View>
 
           <View style={styles.itemBottomRow}>
-            <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+            <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
 
             <View style={styles.stepper}>
               <TouchableOpacity
@@ -200,16 +201,16 @@ export default function CartScreen() {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Shipping</Text>
-              <Text style={styles.summaryValue}>${shipping.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{formatPrice(shipping)}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{formatPrice(total)}</Text>
             </View>
 
             <TouchableOpacity

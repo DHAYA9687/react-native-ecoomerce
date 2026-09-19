@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { WishlistItem, useWishlistStore } from '../store/wishlistStore';
+import { formatPrice } from '../utils/currency';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -86,7 +87,7 @@ export default function WishlistScreen() {
         <Text style={styles.name} numberOfLines={1}>
           {product.name}
         </Text>
-        <Text style={styles.price}>${product.price.toFixed(2)}</Text>
+        <Text style={styles.price}>{formatPrice(product.price)}</Text>
       </TouchableOpacity>
     );
   };

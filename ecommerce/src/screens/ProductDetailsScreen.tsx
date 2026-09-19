@@ -18,6 +18,7 @@ import { Product, useProductStore } from '../store/productStore';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { formatPrice } from '../utils/currency';
 
 const { width } = Dimensions.get('window');
 
@@ -205,7 +206,7 @@ export default function ProductDetailsScreen() {
 
           {/* Price */}
           <View style={styles.priceRow}>
-            <Text style={styles.price}>${product.price.toFixed(2)}</Text>
+            <Text style={styles.price}>{formatPrice(product.price)}</Text>
           </View>
 
           {/* Quantity */}
@@ -261,7 +262,7 @@ export default function ProductDetailsScreen() {
         <View style={styles.bottomPriceBlock}>
           <Text style={styles.bottomPriceLabel}>Total Price</Text>
           <Text style={styles.bottomPrice}>
-            ${(product.price * quantity).toFixed(2)}
+            {formatPrice(product.price * quantity)}
           </Text>
         </View>
         <TouchableOpacity

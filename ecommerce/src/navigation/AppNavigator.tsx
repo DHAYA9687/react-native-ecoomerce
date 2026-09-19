@@ -12,6 +12,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import WishlistScreen from '../screens/WishlistScreen';
+import AddressesScreen from '../screens/AddressesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,6 +30,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
             <Stack.Screen name="Wishlist" component={WishlistScreen} />
+            <Stack.Screen name="Addresses" component={AddressesScreen} />
           </Stack.Group>
         ) : (
           // ---- Auth layer: shown while signed out ----

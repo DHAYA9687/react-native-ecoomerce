@@ -18,6 +18,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useProductStore, Product, Category } from '../store/productStore';
 import { useAuthStore } from '../store/authStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { formatPrice } from '../utils/currency';
 
 const { width } = Dimensions.get('window');
 
@@ -188,7 +189,7 @@ export default function ProductsScreen() {
         {item.name}
       </Text>
       <View style={styles.productMetaRow}>
-        <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
         <View style={styles.ratingRow}>
           <Ionicons name="star" size={12} color="#F59E0B" />
           <Text style={styles.ratingText}>{(item as any).rating ?? '—'}</Text>

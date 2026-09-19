@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { formatPrice } from '../utils/currency';
 
 // ---- Temporary mock data (replace with TanStack Query later) ----
 const ORDERS = [
@@ -129,7 +130,7 @@ export default function OrdersScreen() {
             <Text style={styles.orderMeta}>
               {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
             </Text>
-            <Text style={styles.orderTotal}>${item.total.toFixed(2)}</Text>
+            <Text style={styles.orderTotal}>{formatPrice(item.total)}</Text>
           </View>
         </View>
 

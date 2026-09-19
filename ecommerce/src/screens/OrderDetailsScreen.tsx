@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { formatPrice } from '../utils/currency';
 
 // ---- Temporary mock data (replace with TanStack Query later, fetched by id) ----
 const ORDER = {
@@ -134,7 +135,7 @@ export default function OrderDetailsScreen() {
                 <Text style={styles.itemVariant}>{item.variant}</Text>
                 <Text style={styles.itemQty}>Qty: {item.quantity}</Text>
               </View>
-              <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+              <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
             </View>
           ))}
         </View>
@@ -158,16 +159,16 @@ export default function OrderDetailsScreen() {
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>${ORDER.subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{formatPrice(ORDER.subtotal)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Shipping</Text>
-            <Text style={styles.summaryValue}>${ORDER.shipping.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{formatPrice(ORDER.shipping)}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${ORDER.total.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>{formatPrice(ORDER.total)}</Text>
           </View>
         </View>
 

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from "../api/api";
 import { useCartStore } from "./cartStore";
 import { useWishlistStore } from "./wishlistStore";
+import { useAddressStore } from "./addressStore";
 
 type User = {
     id: number;
@@ -78,10 +79,11 @@ export const useAuthStore = create<AuthStore>()(
                     user: null,
                     isSignedIn: false,
                 });
-                // Cart/wishlist data is per-user - drop it so the next sign-in
-                // on this device doesn't briefly show the previous user's data.
+                // Cart/wishlist/address data is per-user - drop it so the next
+                // sign-in on this device doesn't briefly show the previous user's data.
                 useCartStore.getState().clearCart();
                 useWishlistStore.getState().clearWishlist();
+                useAddressStore.getState().clearAddresses();
             },
         }),
         {

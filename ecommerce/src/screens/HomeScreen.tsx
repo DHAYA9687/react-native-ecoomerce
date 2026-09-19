@@ -19,6 +19,7 @@ import { Category, Product, useProductStore } from '../store/productStore';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { formatPrice } from '../utils/currency';
 
 const { width } = Dimensions.get('window');
 
@@ -206,7 +207,7 @@ export default function HomeScreen() {
         {item.name}
       </Text>
       <View style={styles.productMetaRow}>
-        <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
         {item.stockQuantity <= 0 && (
           <Text style={styles.outOfStockText}>Out of stock</Text>
         )}
