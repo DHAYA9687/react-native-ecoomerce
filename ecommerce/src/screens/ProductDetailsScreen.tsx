@@ -17,6 +17,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Product, useProductStore } from '../store/productStore';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
+import { useWishlistStore } from '../store/wishlistStore';
 
 const { width } = Dimensions.get('window');
 
@@ -50,10 +51,27 @@ export default function ProductDetailsScreen() {
   const userId = useAuthStore((state) => state.user?.id);
   const addToCart = useCartStore((state) => state.addToCart);
 
+  const isWishlisted = useWishlistStore((state) =>
+    product ? state.isInWishlist(product.id) : false
+  );
+  const wishlistItems = useWishlistStore((state) => state.items);
+  const fetchWishlist = useWishlistStore((state) => state.fetchWishlist);
+  const addToWishlist = useWishlistStore((state) => state.addToWishlist);
+  const removeFromWishlist = useWishlistStore((state) => state.removeFromWishlist);
+
   const [quantity, setQuantity] = useState(1);
   const [descExpanded, setDescExpanded] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
+
+  // Fetch once so the heart reflects saved state even when this screen is
+  // opened directly (e.g. deep link) without the list screens having loaded it.
+  useEffect(() => {
+    if (userId && wishlistItems.length === 0) {
+      fetchWishlist(userId).catch((err) => console.error('Fetch wishlist error:', err));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const inStock = (product?.stockQuantity ?? 0) > 0;
   const imageUri = product?.imageUrl || PLACEHOLDER_IMAGE;
@@ -81,6 +99,28 @@ export default function ProductDetailsScreen() {
     }
   };
 
+  const handleToggleWishlist = async () => {
+    if (!product) return;
+
+    if (!userId) {
+      Alert.alert('Please sign in', 'You need to be signed in to save favourites.');
+      return;
+    }
+
+    setIsTogglingWishlist(true);
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(userId, product.id);
+      } else {
+        await addToWishlist(userId, product.id);
+      }
+    } catch (err) {
+      Alert.alert('Something went wrong', 'Could not update your wishlist.');
+    } finally {
+      setIsTogglingWishlist(false);
+    }
+  };
+
   const header = (
     <View style={[styles.header, { top: insets.top + 8 }]}>
       <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
@@ -88,7 +128,8 @@ export default function ProductDetailsScreen() {
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.headerBtn}
-        onPress={() => setIsWishlisted((prev) => !prev)}
+        onPress={handleToggleWishlist}
+        disabled={isTogglingWishlist}
       >
         <Ionicons
           name={isWishlisted ? 'heart' : 'heart-outline'}

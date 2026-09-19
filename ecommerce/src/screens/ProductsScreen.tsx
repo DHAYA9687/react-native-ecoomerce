@@ -1,5 +1,5 @@
 // src/screens/ProductsScreen.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   FlatList,
   Dimensions,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useProductStore, Product, Category } from '../store/productStore';
+import { useAuthStore } from '../store/authStore';
+import { useWishlistStore } from '../store/wishlistStore';
 
 const { width } = Dimensions.get('window');
 
@@ -42,12 +45,52 @@ export default function ProductsScreen() {
   const isProductLoading = useProductStore((state) => state.isLoadingProducts);
   const isCategoryLoading = useProductStore((state) => state.isLoadingCategories);
 
+  const userId = useAuthStore((state) => state.user?.id);
+  const wishlistItems = useWishlistStore((state) => state.items);
+  const fetchWishlist = useWishlistStore((state) => state.fetchWishlist);
+  const addToWishlist = useWishlistStore((state) => state.addToWishlist);
+  const removeFromWishlist = useWishlistStore((state) => state.removeFromWishlist);
+  const [pendingWishlistId, setPendingWishlistId] = useState<number | null>(null);
+
+  const wishlistedIds = useMemo(
+    () => new Set(wishlistItems.map((item) => item.product.id)),
+    [wishlistItems]
+  );
+
   useEffect(() => {
     fetchProducts().catch((err) => console.error('Fetch Products error:', err));
     fetchCategories().catch((err) => console.error('Fetch Categories error:', err));
   }, [fetchProducts, fetchCategories]);
 
-  
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        fetchWishlist(userId).catch((err) => console.error('Fetch wishlist error:', err));
+      }
+    }, [userId, fetchWishlist])
+  );
+
+  const handleToggleWishlist = async (product: Product) => {
+    if (!userId) {
+      Alert.alert('Please sign in', 'You need to be signed in to save favourites.');
+      return;
+    }
+
+    setPendingWishlistId(product.id);
+    try {
+      if (wishlistedIds.has(product.id)) {
+        await removeFromWishlist(userId, product.id);
+      } else {
+        await addToWishlist(userId, product.id);
+      }
+    } catch (err) {
+      Alert.alert('Something went wrong', 'Could not update your wishlist.');
+    } finally {
+      setPendingWishlistId(null);
+    }
+  };
+
+
   const isRefreshing = isProductLoading || isCategoryLoading;
 
   const handleRefresh = () => {
@@ -111,7 +154,11 @@ export default function ProductsScreen() {
     </TouchableOpacity>
   );
 
-  const renderProduct = ({ item }: { item: Product }) => (
+  const renderProduct = ({ item }: { item: Product }) => {
+    const isWishlisted = wishlistedIds.has(item.id);
+    const isWishlistPending = pendingWishlistId === item.id;
+
+    return (
     <TouchableOpacity
       style={styles.productCard}
       activeOpacity={0.8}
@@ -124,8 +171,17 @@ export default function ProductsScreen() {
           contentFit="cover"
           transition={200}
         />
-        <TouchableOpacity style={styles.wishlistBtn}>
-          <Ionicons name="heart-outline" size={18} color="#1F2937" />
+        <TouchableOpacity
+          style={styles.wishlistBtn}
+          onPress={() => handleToggleWishlist(item)}
+          disabled={isWishlistPending}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={isWishlisted ? 'heart' : 'heart-outline'}
+            size={18}
+            color={isWishlisted ? '#EF4444' : '#1F2937'}
+          />
         </TouchableOpacity>
       </View>
       <Text style={styles.productName} numberOfLines={1}>
@@ -139,7 +195,8 @@ export default function ProductsScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>

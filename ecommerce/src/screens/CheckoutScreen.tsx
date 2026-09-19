@@ -1,8 +1,9 @@
-import React from 'react'
 
+import React from 'react'
+import { Text } from 'react-native'
 const CheckoutScreen = () => {
   return (
-    <div>CheckoutScreen</div>
+    <Text>CheckoutScreen</Text>
   )
 }
 

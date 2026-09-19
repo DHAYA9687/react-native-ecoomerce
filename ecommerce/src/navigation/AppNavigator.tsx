@@ -11,6 +11,7 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
+import WishlistScreen from '../screens/WishlistScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +28,7 @@ export default function AppNavigator() {
             <Stack.Screen name="AddProduct" component={AddProductScreen} />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+            <Stack.Screen name="Wishlist" component={WishlistScreen} />
           </Stack.Group>
         ) : (
           // ---- Auth layer: shown while signed out ----

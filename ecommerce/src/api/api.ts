@@ -16,6 +16,8 @@ const baseURL = devHost
     ? "http://10.0.2.2:8080"
     : "http://localhost:8080";
 
+// const baseURL = 'http://10.0.2.2:8080'; // Use this for Android emulator
+
 console.log("API baseURL:", baseURL);
 
 export const api = axios.create({

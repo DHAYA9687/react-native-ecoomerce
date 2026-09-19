@@ -1,5 +1,5 @@
 // src/screens/HomeScreen.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,15 @@ import {
   FlatList,
   Dimensions,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Category, Product, useProductStore } from '../store/productStore';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
+import { useWishlistStore } from '../store/wishlistStore';
 
 const { width } = Dimensions.get('window');
 
@@ -53,9 +55,22 @@ export default function HomeScreen() {
   const fetchProducts = useProductStore((state) => state.fetchProduct);
 
   const userId = useAuthStore((state) => state.user?.id);
+  const user = useAuthStore((state) => state.user);
+  const displayName = user?.username || user?.email?.split('@')[0] || 'there';
   const cartItems = useCartStore((state) => state.items);
   const fetchCart = useCartStore((state) => state.fetchCart);
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const wishlistItems = useWishlistStore((state) => state.items);
+  const fetchWishlist = useWishlistStore((state) => state.fetchWishlist);
+  const addToWishlist = useWishlistStore((state) => state.addToWishlist);
+  const removeFromWishlist = useWishlistStore((state) => state.removeFromWishlist);
+  const [pendingWishlistId, setPendingWishlistId] = useState<number | null>(null);
+
+  const wishlistedIds = useMemo(
+    () => new Set(wishlistItems.map((item) => item.product.id)),
+    [wishlistItems]
+  );
 
   useEffect(() => {
     fetchCategories().catch((err) => console.error('Fetch Categories error:', err));
@@ -67,6 +82,34 @@ export default function HomeScreen() {
       fetchCart(userId).catch((err) => console.error('Fetch cart error:', err));
     }
   }, [userId, fetchCart]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        fetchWishlist(userId).catch((err) => console.error('Fetch wishlist error:', err));
+      }
+    }, [userId, fetchWishlist])
+  );
+
+  const handleToggleWishlist = async (product: Product) => {
+    if (!userId) {
+      Alert.alert('Please sign in', 'You need to be signed in to save favourites.');
+      return;
+    }
+
+    setPendingWishlistId(product.id);
+    try {
+      if (wishlistedIds.has(product.id)) {
+        await removeFromWishlist(userId, product.id);
+      } else {
+        await addToWishlist(userId, product.id);
+      }
+    } catch (err) {
+      Alert.alert('Something went wrong', 'Could not update your wishlist.');
+    } finally {
+      setPendingWishlistId(null);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -129,7 +172,11 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderProduct = ({ item }: { item: Product }) => (
+  const renderProduct = ({ item }: { item: Product }) => {
+    const isWishlisted = wishlistedIds.has(item.id);
+    const isWishlistPending = pendingWishlistId === item.id;
+
+    return (
     <TouchableOpacity
       style={styles.productCard}
       onPress={() => navigation.navigate('ProductDetails', { id: item.id, product: item })}
@@ -142,8 +189,17 @@ export default function HomeScreen() {
           contentFit="cover"
           transition={200}
         />
-        <TouchableOpacity style={styles.wishlistBtn}>
-          <Ionicons name="heart-outline" size={18} color="#1F2937" />
+        <TouchableOpacity
+          style={styles.wishlistBtn}
+          onPress={() => handleToggleWishlist(item)}
+          disabled={isWishlistPending}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={isWishlisted ? 'heart' : 'heart-outline'}
+            size={18}
+            color={isWishlisted ? '#EF4444' : '#1F2937'}
+          />
         </TouchableOpacity>
       </View>
       <Text style={styles.productName} numberOfLines={1}>
@@ -156,14 +212,15 @@ export default function HomeScreen() {
         )}
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hello 👋</Text>
+          <Text style={styles.greeting}>Hello, {displayName} 👋</Text>
           <Text style={styles.greetingSub}>Find what you love</Text>
         </View>
         <TouchableOpacity

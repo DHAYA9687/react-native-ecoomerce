@@ -1,5 +1,5 @@
 // src/screens/ProfileScreen.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import { useAuthStore } from '../store/authStore';
+import { useWishlistStore } from '../store/wishlistStore';
 
 // ---- Temporary mock data (replace with auth/user store later) ----
 const USER = {
@@ -21,7 +22,6 @@ const USER = {
   email: 'sekarsekar@email.com',
   avatar: 'https://picsum.photos/seed/user1/200/200',
   ordersCount: 12,
-  wishlistCount: 8,
   reviewsCount: 4,
 };
 // -------------------------------------------------------------
@@ -38,7 +38,7 @@ type MenuItem = {
 
 const ACCOUNT_ITEMS: MenuItem[] = [
   { id: 'orders', label: 'My Orders', icon: 'receipt-outline', route: 'Orders' },
-  { id: 'wishlist', label: 'Wishlist', icon: 'heart-outline' },
+  { id: 'wishlist', label: 'Wishlist', icon: 'heart-outline', route: 'Wishlist' },
   { id: 'addresses', label: 'Shipping Addresses', icon: 'location-outline' },
   { id: 'payment', label: 'Payment Methods', icon: 'card-outline' },
 ];
@@ -58,6 +58,15 @@ export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   // const { signOut } = useAuth();
   const signout = useAuthStore((state)=> state.signOut)
+  const userId = useAuthStore((state) => state.user?.id)
+  const wishlistCount = useWishlistStore((state) => state.items.length)
+  const fetchWishlist = useWishlistStore((state) => state.fetchWishlist)
+
+  useEffect(() => {
+    if (userId) {
+      fetchWishlist(userId).catch((err) => console.error('Fetch wishlist error:', err));
+    }
+  }, [userId, fetchWishlist]);
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -129,7 +138,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{USER.wishlistCount}</Text>
+            <Text style={styles.statValue}>{wishlistCount}</Text>
             <Text style={styles.statLabel}>Wishlist</Text>
           </View>
           <View style={styles.statDivider} />
