@@ -10,13 +10,13 @@ import Constants from "expo-constants";
 const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.debuggerHost ?? undefined;
 const devHost = debuggerHost?.split(":")[0];
 
-const baseURL = devHost
-    ? `http://${devHost}:8080`
-    : Platform.OS === "android"
-    ? "http://10.0.2.2:8080"
-    : "http://localhost:8080";
+// const baseURL = devHost
+//     ? `http://${devHost}:8080`
+//     : Platform.OS === "android"
+//     ? "http://10.0.2.2:8080"
+//     : "http://localhost:8080";
 
-// const baseURL = 'http://10.0.2.2:8080'; // Use this for Android emulator
+const baseURL = ' https://foziest-porter-unchanced.ngrok-free.dev'; // Use this for Android emulator
 
 console.log("API baseURL:", baseURL);
 
