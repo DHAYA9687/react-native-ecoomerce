@@ -1,12 +1,11 @@
 // src/screens/ProfileScreen.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -15,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { useAuthStore } from '../store/authStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 // ---- Temporary mock data (replace with auth/user store later) ----
 const USER = {
@@ -62,6 +62,8 @@ export default function ProfileScreen() {
   const wishlistCount = useWishlistStore((state) => state.items.length)
   const fetchWishlist = useWishlistStore((state) => state.fetchWishlist)
 
+  const [isLogoutDialogVisible, setIsLogoutDialogVisible] = useState(false);
+
   useEffect(() => {
     if (userId) {
       fetchWishlist(userId).catch((err) => console.error('Fetch wishlist error:', err));
@@ -69,16 +71,9 @@ export default function ProfileScreen() {
   }, [userId, fetchWishlist]);
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out',
-        style: 'destructive',
-        // Flipping auth state swaps AppNavigator back to the auth layer.
-        // onPress: () => signOut(),
-        onPress:()=> signout(),
-      },
-    ]);
+    setIsLogoutDialogVisible(false);
+    // Flipping auth state swaps AppNavigator back to the auth layer.
+    signout();
   };
 
   const renderMenuItem = (item: MenuItem, isLast: boolean) => (
@@ -154,13 +149,23 @@ export default function ProfileScreen() {
         {renderSection('Support', SUPPORT_ITEMS)}
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={() => setIsLogoutDialogVisible(true)}>
           <Ionicons name="log-out-outline" size={18} color="#EF4444" />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
         <Text style={styles.versionText}>Version 1.0.0</Text>
       </ScrollView>
+
+      <ConfirmDialog
+        visible={isLogoutDialogVisible}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        destructive
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutDialogVisible(false)}
+      />
     </SafeAreaView>
   );
 }

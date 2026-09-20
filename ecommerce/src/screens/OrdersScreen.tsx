@@ -1,56 +1,21 @@
 // src/screens/OrdersScreen.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useAuthStore } from '../store/authStore';
+import { Order, useOrderStore } from '../store/orderStore';
 import { formatPrice } from '../utils/currency';
 
-// ---- Temporary mock data (replace with TanStack Query later) ----
-const ORDERS = [
-  {
-    id: 'ORD-1024',
-    date: 'Sep 2, 2026',
-    status: 'delivered',
-    total: 189.98,
-    itemCount: 3,
-    thumbnail: 'https://picsum.photos/seed/p1/200/200',
-  },
-  {
-    id: 'ORD-1023',
-    date: 'Aug 28, 2026',
-    status: 'shipped',
-    total: 59.99,
-    itemCount: 1,
-    thumbnail: 'https://picsum.photos/seed/p2/200/200',
-  },
-  {
-    id: 'ORD-1022',
-    date: 'Aug 20, 2026',
-    status: 'processing',
-    total: 129.99,
-    itemCount: 2,
-    thumbnail: 'https://picsum.photos/seed/p3/200/200',
-  },
-  {
-    id: 'ORD-1021',
-    date: 'Aug 10, 2026',
-    status: 'cancelled',
-    total: 45.0,
-    itemCount: 1,
-    thumbnail: 'https://picsum.photos/seed/p4/200/200',
-  },
-];
-// -----------------------------------------------------------------
-
-type Order = (typeof ORDERS)[number];
 type StatusFilter = 'all' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
 const FILTERS: { id: StatusFilter; label: string }[] = [
@@ -64,23 +29,84 @@ const FILTERS: { id: StatusFilter; label: string }[] = [
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const STATUS_CONFIG: Record<
-  string,
+  StatusFilter,
   { label: string; color: string; bg: string; icon: IoniconName }
 > = {
+  all: { label: 'All', color: '#6B7280', bg: '#F3F4F6', icon: 'ellipsis-horizontal-outline' },
   processing: { label: 'Processing', color: '#D97706', bg: '#FEF3C7', icon: 'time-outline' },
   shipped: { label: 'Shipped', color: '#2563EB', bg: '#DBEAFE', icon: 'cube-outline' },
   delivered: { label: 'Delivered', color: '#059669', bg: '#D1FAE5', icon: 'checkmark-circle-outline' },
   cancelled: { label: 'Cancelled', color: '#DC2626', bg: '#FEE2E2', icon: 'close-circle-outline' },
 };
 
+// The backend only tracks PENDING/CONFIRMED/SHIPPED/DELIVERED/CANCELLED - fold
+// the pre-shipping states into a single "processing" bucket for the UI filters.
+function toDisplayStatus(status: Order['status']): StatusFilter {
+  switch (status) {
+    case 'PENDING':
+    case 'CONFIRMED':
+      return 'processing';
+    case 'SHIPPED':
+      return 'shipped';
+    case 'DELIVERED':
+      return 'delivered';
+    case 'CANCELLED':
+      return 'cancelled';
+    default:
+      return 'processing';
+  }
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export default function OrdersScreen() {
   const navigation = useNavigation<any>();
+  const userId = useAuthStore((state) => state.user?.id);
+  const orders = useOrderStore((state) => state.orders);
+  const isLoading = useOrderStore((state) => state.isLoading);
+  const fetchOrders = useOrderStore((state) => state.fetchOrders);
+
   const [activeFilter, setActiveFilter] = useState<StatusFilter>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (userId) {
+        fetchOrders(userId).catch((err) => console.error('Fetch orders error:', err));
+      }
+    }, [userId, fetchOrders])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    if (!userId) return;
+    setIsRefreshing(true);
+    try {
+      await fetchOrders(userId);
+    } catch (err) {
+      console.error('Refresh orders error:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [userId, fetchOrders]);
+
+  const sortedOrders = useMemo(
+    () =>
+      [...orders].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [orders]
+  );
 
   const filteredOrders = useMemo(() => {
-    if (activeFilter === 'all') return ORDERS;
-    return ORDERS.filter((o) => o.status === activeFilter);
-  }, [activeFilter]);
+    if (activeFilter === 'all') return sortedOrders;
+    return sortedOrders.filter((o) => toDisplayStatus(o.status) === activeFilter);
+  }, [sortedOrders, activeFilter]);
 
   const renderFilter = ({ item }: { item: (typeof FILTERS)[number] }) => (
     <TouchableOpacity
@@ -99,23 +125,21 @@ export default function OrdersScreen() {
   );
 
   const renderOrder = ({ item }: { item: Order }) => {
-    const config = STATUS_CONFIG[item.status];
+    const displayStatus = toDisplayStatus(item.status);
+    const config = STATUS_CONFIG[displayStatus];
     return (
       <TouchableOpacity
         style={styles.orderCard}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('OrderDetails', { id: item.id })}
+        onPress={() => navigation.navigate('OrderDetails', { id: item.orderId })}
       >
-        <Image
-          source={{ uri: item.thumbnail }}
-          style={styles.orderThumbnail}
-          contentFit="cover"
-          transition={200}
-        />
+        <View style={[styles.orderThumbnail, { backgroundColor: config.bg }]}>
+          <Ionicons name="receipt-outline" size={22} color={config.color} />
+        </View>
 
         <View style={styles.orderInfo}>
           <View style={styles.orderTopRow}>
-            <Text style={styles.orderId}>{item.id}</Text>
+            <Text style={styles.orderId}>Order #{item.orderId}</Text>
             <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
               <Ionicons name={config.icon} size={12} color={config.color} />
               <Text style={[styles.statusText, { color: config.color }]}>
@@ -124,13 +148,13 @@ export default function OrdersScreen() {
             </View>
           </View>
 
-          <Text style={styles.orderDate}>{item.date}</Text>
+          <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
 
           <View style={styles.orderBottomRow}>
             <Text style={styles.orderMeta}>
-              {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+              {item.items.length} {item.items.length === 1 ? 'item' : 'items'}
             </Text>
-            <Text style={styles.orderTotal}>{formatPrice(item.total)}</Text>
+            <Text style={styles.orderTotal}>{formatPrice(item.totalAmount)}</Text>
           </View>
         </View>
 
@@ -155,21 +179,36 @@ export default function OrdersScreen() {
         contentContainerStyle={styles.filterList}
       />
 
-      {filteredOrders.length === 0 ? (
+      {isLoading && orders.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="receipt-outline" size={56} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No orders here</Text>
-          <Text style={styles.emptySubtitle}>
-            Orders with this status will show up here
-          </Text>
+          <ActivityIndicator size="small" color="#111827" />
         </View>
       ) : (
         <FlatList
           data={filteredOrders}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.orderId)}
           renderItem={renderOrder}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            filteredOrders.length === 0 && styles.listContentEmpty,
+          ]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="#111827"
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="receipt-outline" size={56} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No orders here</Text>
+              <Text style={styles.emptySubtitle}>
+                Orders with this status will show up here
+              </Text>
+            </View>
+          }
         />
       )}
     </SafeAreaView>
@@ -226,6 +265,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 12,
   },
+  listContentEmpty: {
+    flexGrow: 1,
+  },
   orderCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,6 +285,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   orderInfo: {
     flex: 1,

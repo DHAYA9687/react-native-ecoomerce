@@ -5,6 +5,7 @@ import { api } from "../api/api";
 import { useCartStore } from "./cartStore";
 import { useWishlistStore } from "./wishlistStore";
 import { useAddressStore } from "./addressStore";
+import { useOrderStore } from "./orderStore";
 
 type User = {
     id: number;
@@ -84,6 +85,7 @@ export const useAuthStore = create<AuthStore>()(
                 useCartStore.getState().clearCart();
                 useWishlistStore.getState().clearWishlist();
                 useAddressStore.getState().clearAddresses();
+                useOrderStore.getState().clearOrders();
             },
         }),
         {

@@ -39,6 +39,8 @@ type ConfirmDialogProps = {
   icon?: keyof typeof Ionicons.glyphMap;
   /** Disables both buttons and shows a spinner on the confirm button. */
   loading?: boolean;
+  /** Hides the Cancel button, for a single-button info/success dialog. */
+  hideCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -52,6 +54,7 @@ export default function ConfirmDialog({
   destructive = false,
   icon,
   loading = false,
+  hideCancel = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -84,13 +87,15 @@ export default function ConfirmDialog({
               {!!message && <Text style={styles.message}>{message}</Text>}
 
               <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={[styles.button, styles.cancelButton]}
-                  onPress={onCancel}
-                  disabled={loading}
-                >
-                  <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
-                </TouchableOpacity>
+                {!hideCancel && (
+                  <TouchableOpacity
+                    style={[styles.button, styles.cancelButton]}
+                    onPress={onCancel}
+                    disabled={loading}
+                  >
+                    <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[
                     styles.button,

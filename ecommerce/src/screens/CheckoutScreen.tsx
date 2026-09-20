@@ -17,6 +17,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { Address, AddressInput, useAddressStore } from '../store/addressStore';
+import { useOrderStore } from '../store/orderStore';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { formatPrice } from '../utils/currency';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -78,6 +80,8 @@ export default function CheckoutScreen() {
   const createAddress = useAddressStore((state) => state.createAddress);
   const deleteAddress = useAddressStore((state) => state.deleteAddress);
 
+  const placeOrder = useOrderStore((state) => state.placeOrder);
+
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [isAddressListVisible, setIsAddressListVisible] = useState(false);
   const [isAddAddressVisible, setIsAddAddressVisible] = useState(false);
@@ -92,6 +96,7 @@ export default function CheckoutScreen() {
   const [deliveryMethodId, setDeliveryMethodId] = useState(DELIVERY_METHODS[0].id);
   const [paymentMethodId, setPaymentMethodId] = useState(PAYMENT_METHODS[0].id);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [isOrderPlacedVisible, setIsOrderPlacedVisible] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -184,18 +189,27 @@ export default function CheckoutScreen() {
       return;
     }
 
+    if (!userId) return;
+
     setIsPlacingOrder(true);
     try {
-      // No order-placement backend exists yet - simulate the round trip so
-      // the flow feels real, then drop the cart like a completed order would.
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await placeOrder(userId, {
+        addressId: selectedAddress.id,
+        paymentMethod: paymentMethodId,
+        deliveryMethod: deliveryMethodId,
+      });
       clearCart();
-      Alert.alert('Order placed!', 'Your order has been placed successfully.', [
-        { text: 'OK', onPress: () => navigation.navigate('MainTabs', { screen: 'Orders' }) },
-      ]);
+      setIsOrderPlacedVisible(true);
+    } catch (err) {
+      Alert.alert('Something went wrong', 'Could not place your order. Please try again.');
     } finally {
       setIsPlacingOrder(false);
     }
+  };
+
+  const handleOrderPlacedDismiss = () => {
+    setIsOrderPlacedVisible(false);
+    navigation.navigate('MainTabs', { screen: 'Orders' });
   };
 
   return (
@@ -388,7 +402,7 @@ export default function CheckoutScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.modalCancelBtn}
+              style={styles.standaloneCloseBtn}
               onPress={() => setIsAddressListVisible(false)}
             >
               <Text style={styles.modalCancelText}>Close</Text>
@@ -450,6 +464,17 @@ export default function CheckoutScreen() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={isOrderPlacedVisible}
+        title="Order Placed!"
+        message="Your order has been placed successfully."
+        confirmLabel="OK"
+        icon="checkmark-circle-outline"
+        hideCancel
+        onConfirm={handleOrderPlacedDismiss}
+        onCancel={handleOrderPlacedDismiss}
+      />
     </SafeAreaView>
   );
 }
@@ -599,6 +624,18 @@ const styles = StyleSheet.create({
   },
   modalCancelBtn: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  // Same look as modalCancelBtn, but without flex: 1 - this one is used on
+  // its own (not in a flex-row with a Save button), so flex: 1 would let it
+  // grow to fill the modal's whole remaining height (bounded by modalCard's
+  // maxHeight), pushing its centered text off-screen.
+  standaloneCloseBtn: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
