@@ -14,14 +14,12 @@ import { useNavigation } from '@react-navigation/native';
 
 import { useAuthStore } from '../store/authStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { useOrderStore } from '../store/orderStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 
-// ---- Temporary mock data (replace with auth/user store later) ----
-const USER = {
-  name: 'Dhaya',
-  email: 'sekarsekar@email.com',
+// ---- Still mocked: no avatar upload or reviews backend yet ----
+const MOCK_PROFILE = {
   avatar: 'https://picsum.photos/seed/user1/200/200',
-  ordersCount: 12,
   reviewsCount: 4,
 };
 // -------------------------------------------------------------
@@ -58,17 +56,21 @@ export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   // const { signOut } = useAuth();
   const signout = useAuthStore((state)=> state.signOut)
-  const userId = useAuthStore((state) => state.user?.id)
+  const user = useAuthStore((state) => state.user)
+  const userId = user?.id
   const wishlistCount = useWishlistStore((state) => state.items.length)
   const fetchWishlist = useWishlistStore((state) => state.fetchWishlist)
+  const ordersCount = useOrderStore((state) => state.orders.length)
+  const fetchOrders = useOrderStore((state) => state.fetchOrders)
 
   const [isLogoutDialogVisible, setIsLogoutDialogVisible] = useState(false);
 
   useEffect(() => {
     if (userId) {
       fetchWishlist(userId).catch((err) => console.error('Fetch wishlist error:', err));
+      fetchOrders(userId).catch((err) => console.error('Fetch orders error:', err));
     }
-  }, [userId, fetchWishlist]);
+  }, [userId, fetchWishlist, fetchOrders]);
 
   const handleLogout = () => {
     setIsLogoutDialogVisible(false);
@@ -115,10 +117,10 @@ export default function ProfileScreen() {
 
         {/* User card */}
         <View style={styles.userCard}>
-          <Image source={{ uri: USER.avatar }} style={styles.avatar} contentFit="cover" />
+          <Image source={{ uri: MOCK_PROFILE.avatar }} style={styles.avatar} contentFit="cover" />
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{USER.name}</Text>
-            <Text style={styles.userEmail}>{USER.email}</Text>
+            <Text style={styles.userName}>{user?.username ?? 'User'}</Text>
+            <Text style={styles.userEmail}>{user?.email ?? ''}</Text>
           </View>
           <TouchableOpacity style={styles.editBtn}>
             <Ionicons name="pencil-outline" size={16} color="#111827" />
@@ -128,7 +130,7 @@ export default function ProfileScreen() {
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{USER.ordersCount}</Text>
+            <Text style={styles.statValue}>{ordersCount}</Text>
             <Text style={styles.statLabel}>Orders</Text>
           </View>
           <View style={styles.statDivider} />
@@ -138,7 +140,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{USER.reviewsCount}</Text>
+            <Text style={styles.statValue}>{MOCK_PROFILE.reviewsCount}</Text>
             <Text style={styles.statLabel}>Reviews</Text>
           </View>
         </View>
